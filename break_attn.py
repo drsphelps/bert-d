@@ -56,8 +56,3 @@ def break_attn_across_layers(model, tensors, layers, zero_type='random', share=0
 
 model = BertModel.from_pretrained('bert-base-uncased')
 damaged_model = break_attn_across_layers(model, ['value', 'key'], [0, 2, 3, 4, 5])
-
-
-print(damaged_model.encoder.layer[0].attention.self.key.weight)
-print(damaged_model.encoder.layer[1].attention.self.key.weight)
-print(damaged_model.encoder.layer[5].attention.self.key.weight)
