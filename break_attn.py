@@ -16,21 +16,18 @@ def zeroing(linear, zero_type, share):
                 for row in range(0, linear.weight.size()[0]):
                     linear.weight[row][rnd_index] = linear.weight[row][rnd_index].mul(0.0)
                     linear.bias[rnd_index] = linear.bias[rnd_index].mul(0.0)
-            return model
     elif zero_type == 'first':
         offset = int(batch*share)
         for head in head_offsets:
             for row in range(linear.weight.size()[0]):
                 linear.weight[row][head:head+offset] = linear.weight[row][head:head+offset].mul(0.0)
                 linear.bias[head:head+offset] = linear.bias[head:head+offset].mul(0.0)
-        return model
     elif zero_type == 'shuffle':
         offset = int(64*share)
         for head in head_offsets:
             for row in range(linear.weight.size()[0]):
                 np.random.shuffle(linear.weight[row][head:head+offset])
                 np.random.shuffle(linear.bias[row][head:head+offset])
-        return model
     else:
         raise ValueError("zeroing type is not supported!")
 
@@ -40,19 +37,15 @@ def break_attn_heads_by_layer(model, tensors, zero_type='random', share=0.25, la
     damaged_model = model
     with torch.no_grad():
         if 'value' in tensors:
-            damaged_model = zeroing(damaged_model.encoder.layer[layer].attention.self.value, zero_type, share)
+            zeroing(damaged_model.encoder.layer[layer].attention.self.value, zero_type, share)
         if 'key' in tensors:
-            damaged_model = zeroing(damaged_model.encoder.layer[layer].attention.self.key, zero_type, share)
+            zeroing(damaged_model.encoder.layer[layer].attention.self.key, zero_type, share)
         if 'query' in tensors:
-            damaged_model = zeroing(damaged_model.encoder.layer[layer].attention.self.query, zero_type, share)
+            zeroing(damaged_model.encoder.layer[layer].attention.self.query, zero_type, share)
     return damaged_model
 
 
-def break_attn_across_layers(model, tensors, layers, zero_type='random', share=0.25):
+def break_attn_across_layers(model, tensors, layers, zero_type='first', share=0.25):
     for layer in layers:
         model = break_attn_heads_by_layer(model, tensors, zero_type, share, layer)
     return model
-        
-
-model = BertModel.from_pretrained('bert-base-uncased')
-damaged_model = break_attn_across_layers(model, ['value', 'key'], [0, 2, 3, 4, 5])
